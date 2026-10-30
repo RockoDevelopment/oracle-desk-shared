@@ -565,6 +565,8 @@ html,body{background:#000}
 .rp-btn{display:inline-flex;align-items:center;gap:7px;flex:none;height:40px;padding:0 13px;border-radius:12px;border:1px solid var(--line2);background:#000;color:var(--text);font-weight:600;font-size:13px}
 .rp-btn svg{width:17px;height:17px}
 .rp-btn:hover{border-color:#444;background:#0a0a0a}
+.x-btn{margin-right:8px;text-decoration:none}
+.x-btn svg{width:15px;height:15px}
 .rp{position:fixed;inset:0;z-index:45;background:#000;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 html.rp-open,html.rp-open body{overflow:hidden}
 .rp-top{position:sticky;top:0;z-index:2;background:#000;border-bottom:1px solid var(--line)}
@@ -800,6 +802,7 @@ html.rp-open,html.rp-open body{overflow:hidden}
       <button data-t="ai" aria-pressed="false">AI</button>
       <button data-t="q" aria-pressed="false">Quantum</button>
     </div>
+      <a class="rp-btn x-btn" id="xBtn" href="https://x.com/TheOracleScout" target="_blank" rel="noopener noreferrer" aria-label="Open the Oracle on X"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>X</span></a>
       <button class="rp-btn" id="rpBtn" aria-label="Open Oracle report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg><span>Report</span></button>
   </div>
   <div class="marquee" aria-label="Latest updates"><div class="mq-track" id="mq"></div></div>
@@ -1760,12 +1763,18 @@ function spawnIcon() {
 }
 /* typewriter */
 let typeQ = [], typeTimer = null;
+function watchLine() {
+  const st = feed?.status || {}, wl = feed?.watchlist || [];
+  const ai = wl.filter(w => String(w.theme).toLowerCase() === 'ai').length, q = wl.filter(w => /quantum/i.test(String(w.theme))).length;
+  if (!wl.length) return 'Loading the watchlist…';
+  return `Tracking ${wl.length} projects${ai || q ? ` · ${ai} AI, ${q} Quantum` : ''}${st.next_scan ? ' · next scan ' + tTime(st.next_scan) + ' ' + TZL : ''}`;
+}
 function lines() {
   const st = feed?.status || {};
   if (botState === 'alert') { const l = alertsNow().slice().sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0))[0]; return [`Alert sent: ${l ? l.name + (l.ticker ? ' $' + l.ticker : '') : 'new signal'}`]; }
-  if (botState === 'scanning') { const a = (st.activity || []).filter(Boolean); return a.length ? a : ['Scanning sources']; }
+  if (botState === 'scanning') { const a = (st.activity || []).filter(Boolean); return [watchLine(), ...(a.length ? a : ['Scanning sources'])]; }
   const ws = (feed?.watchlist || []).filter(w => ['pre-launch', 'testnet'].includes(String(w.stage).toLowerCase()) && w.next_milestone && (!w.milestone_date || msTo(w.milestone_date) > 0)).sort((x, y) => (x.milestone_date ? new Date(x.milestone_date) : 9e15) - (y.milestone_date ? new Date(y.milestone_date) : 9e15));
-  return [`Watching ${(feed?.watchlist || []).length} projects · next scan ${st.next_scan ? tTime(st.next_scan) + (' '+TZL) : 'n/a'}`, ...ws.slice(0, 3).map(w => { const suf = w.milestone_date ? ' · ' + rel(w.milestone_date) : ''; let base = `${w.name}: ${String(w.next_milestone).split(/[;(]/)[0].trim()}`; const room = 64 - suf.length; if (base.length > room) base = base.slice(0, room - 1).trimEnd() + '…'; return base + suf; })];
+  return [watchLine(), ...ws.slice(0, 3).map(w => { const suf = w.milestone_date ? ' · ' + rel(w.milestone_date) : ''; let base = `${w.name}: ${String(w.next_milestone).split(/[;(]/)[0].trim()}`; const room = 64 - suf.length; if (base.length > room) base = base.slice(0, room - 1).trimEnd() + '…'; return base + suf; })];
 }
 function typeLoop(idx = 0) {
   clearTimeout(typeTimer);
@@ -1800,9 +1809,10 @@ function apply(data, src) {
 }
 async function getJSON(url) { const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
 async function init() {
-  initAvatar(); setBot('idle'); typeLoop(0);
+  initAvatar(); setBot('idle');
   try { apply(await getJSON('./oracle-feed.json'), 'live'); }
   catch { apply({}, 'none'); }
+  typeLoop(0);
   setInterval(poll, 60000);
   syncNow();
 }
