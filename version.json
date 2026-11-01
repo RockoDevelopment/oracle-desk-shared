@@ -1,0 +1,9 @@
+{
+ "version": 202611010303,
+ "files": {
+  "full": "oracle-desk-for-others.html",
+  "lite": "oracle-desk-lite.html"
+ },
+ "repo": "RockoDevelopment/oracle-desk-shared",
+ "note": "Desk code version. The desk Update button lights up when this number is higher than the one inside the page."
+}
