@@ -8,7 +8,7 @@ RULES FOR THE BOT THAT WRITES THIS DESK'S FEED (not for viewers):
 1. The page reads ./oracle-feed-lite.json from its own folder (setting FEED_PATH near the top of the script). Publish the folder (including the logos folder) over http. Do not rewrite the page.
 2. SYNC_URL stays blank, so "Mark done" ticks are saved on each device only. Times show in each viewer's own browser time zone.
 3. Leave "alerts" as an empty list and leave out breakdown, contract and impostor data. The page never shows them, even if present.
-4. Project images: each watchlist item may carry "logo": "logos/<slug>.png" (128x128 PNG, the project's real official logo) and "website": "<official site>". Each digest.top3 entry is {name, why, logo, url}.
+4. Project images (logos): every watchlist item and digest.top3 entry carries "logo": "logos/<slug>.png" (slug = lowercase name with dashes; 128x128 PNG, the project's real official logo) and "website": "<official site>". Each digest.top3 entry is {name, why, logo, url}. Run python3 fetch_logos.py (from https://raw.githubusercontent.com/RockoDevelopment/oracle-desk-shared/main/fetch_logos.py) at setup and whenever a project joins; for anything it skips use the verified official X profile image, never an impostor's. Publish the logos folder and check one logo URL loads (HTTP 200). The page shows the initial only when no logo file exists.
 5. Morning report: copy the daily morning report into a "report" object: updated (ISO), full_report_url, intro, snapshots, disclaimer, takeaways [strings], prelaunch [{project, ticker, theme, coming, when, score, why}], radar_only [names], tokens [{project, ticker, theme, category, tier, price, market_cap, volume_24h, score, dex}], safetrade_source, safetrade [{project, ticker, theme, pair, price, market_cap, volume_24h, score, tier, dex, note}], safetrade_venue {type, x, site, announcements, listing_posts, launchpad, trust_score, steps [{title, text}]}, notes [{section "prelaunch"|"tokens"|"safetrade", theme, text}], sources [{title, url}]. theme is "AI" or "Quantum"; money values are plain USD numbers.
 6. Live prices: live watchlist tokens carry price, market_cap, volume_24h, "price_updated" (exact ISO time with offset) and last_update. Never guess a price.
 7. Milestones: next_milestone and milestone_date move forward to the next dated event; never write relative words such as "today" or "tomorrow"; if nothing is upcoming leave milestone_date empty.
@@ -1103,7 +1103,7 @@ function renderDigest() {
   const logoOk = u => typeof u === 'string' && (/^https:\/\//.test(u) || /^[\w\-\/.]+$/.test(u)) ? u : '';
   $('#top3').innerHTML = top.length ? top.map((t, i) => {
     const w = wlFind(t.name);
-    const logo = logoOk(t.logo || w.logo);
+    const logo = logoOk(t.logo || w.logo) || slugLogo(t.name);
     const site = t.url || w.website || ((w.links || [])[0] || {}).url || '';
     const badgeHtml = logo ? `<span class="n lg" data-n="${i + 1}"><img src="${esc(logo)}" alt="${esc(t.name)} logo" loading="lazy" referrerpolicy="no-referrer"></span>` : `<span class="n">${i + 1}</span>`;
     const link = site ? `<a class="site" href="${esc(safeUrl(site))}" target="_blank" rel="noopener noreferrer">Website \u2197</a>` : '';
@@ -1202,7 +1202,9 @@ const sv = (w, k) => {
   const v = w[k]; if (v == null || v === '') return null;
   return ['score', 'price', 'market_cap', 'volume_24h'].includes(k) ? +v : String(v).toLowerCase();
 };
-const wlLogo = w => { const u = typeof w.logo === 'string' && (/^https:\/\//.test(w.logo) || /^[\w\-\/.]+$/.test(w.logo)) ? w.logo : ''; const ini = esc(String(w.name || '?').trim().charAt(0).toUpperCase()); return `<span class="wl-logo" data-i="${ini}">${u ? `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.textContent=this.parentNode.dataset.i">` : ini}</span>`; };
+/* logo fallback: an item with no usable "logo" still tries logos/<slug>.png (slug = lowercase name, dashes); the initial shows only if that file is missing */
+function slugLogo(n) { const s = String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); return s ? 'logos/' + s + '.png' : ''; }
+const wlLogo = w => { const u = typeof w.logo === 'string' && (/^https:\/\//.test(w.logo) || /^[\w\-\/.]+$/.test(w.logo)) ? w.logo : slugLogo(w.name); const ini = esc(String(w.name || '?').trim().charAt(0).toUpperCase()); return `<span class="wl-logo" data-i="${ini}">${u ? `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.textContent=this.parentNode.dataset.i">` : ini}</span>`; };
 function renderWatch() {
   $('#thead').innerHTML = COLS.map(([k, l]) => `<th ${sortKey === k ? `aria-sort="${sortDir > 0 ? 'ascending' : 'descending'}"` : ''}><button data-sort="${k}">${l}${sortKey === k ? (sortDir > 0 ? ' ↑' : ' ↓') : ''}</button></th>`).join('');
   $('#sortSel').innerHTML = COLS.map(([k, l]) => `<option value="${k}" ${k === sortKey ? 'selected' : ''}>Sort: ${l}</option>`).join('');
